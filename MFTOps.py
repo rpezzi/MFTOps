@@ -36,6 +36,9 @@ flpMap = {"h0-d0": "mftcom1",
     "h1-d0": "mftcom5"
 }
 
+MFTflps = {'mftcom1', 'mftcom2', 'mftcom3', 'mftcom4', 'mftcom5'}
+
+
 def getHalf(halfdisk):
     return halfdisk[1]
 
@@ -64,6 +67,13 @@ def commandToFLPPrompt(halfDisk, command): # Send a command to the corresponding
         cmd_prefix = "ssh -Y " + flpMap[halfDisk] + "  tmux send -t oncall:0." + getHalf(halfDisk) + " HOME C-k \"\'"
         cmd_suffix = "\'\""
         os.system(cmd_prefix + command + cmd_suffix)
+
+def runOnFLP(hostname, command): # Runs a command on the corresponding FLP
+    if (hostname in MFTflps):
+        cmd_ = "ssh -Y " + hostname + " " + command
+        os.system(cmd_)
+    else:
+        print(hostname, "is not a valid MFT FLP")
 
 def clearFLPPrompt(halfDisk): # Clear prompt entry of the corresponding tmux terminal
     if checkHalfDisk(halfDisk):
@@ -95,19 +105,22 @@ class MFTOps(cmd.Cmd):
     prompt = '(MFTOps) '
     def preloop(self):
         print("===================")
-        print("MFT Operation shell")
+        print("MFT Operation Shell")
         print("===================\n")
 
-        print("This shell sends basic commands to MFT oncall tmux sessions on all FLPs.\n")
-        print("It works based on several weak assumptions:")
-        print("   1. Tmux sessions named 'oncall' are loaded on each FLP")
+        print("The MFT Operation Shell provides a centralized interface to operate the MFT.")
+        print("The shells sends commands to the oncall tmux sessions on the MFT FLPs. Status of GBT links can be checked.\n")
+        print("It os based on several weak assumptions:")
+        print("   1. Tmux sessions named 'oncall' where created on all FLPs")
         print("   2. Each session is split in two windows with current working dir at '~/mft-ru-cru/software/testbench'")
-        print("   3. Hosts mftcom1, mftcom2, ... are configured for private key auth on ~/.ssh/config\n")
+        print("   3. Hosts mftcom1, mftcom2, ... are locally configured for private key auth on ~/.ssh/config\n")
         print("Useful commands:")
         print("listConfigs")
         print("config NOISE")
         print("config PHYSICS")
-        print("enterToAll")
+        print("sendCommandToOncallPrompts cd ~/mft-ru-cru/software/testbench")
+        print("enterToOncallPrompts")
+        print("checkLinksDown")
         print("Type 'help' to view available commands; <TAB> autocompletes")
         print("Think twice before sending any command!\n")
         if readline and os.path.exists(histfile):
@@ -124,36 +137,55 @@ class MFTOps(cmd.Cmd):
         if mode:
             configMFT(mode)
         else:
-            print('missing argument')
+            print('Missing configuration mode!')
+            listConfigs();
 
     def complete_config(self, text, line, begidx, endidx):
         text=text.upper()
         return [i for i in configMap if i.startswith(text)]
 
-    def do_sendCommandToAll(self, line):
-        """sendCommandToAll command
+    def do_sendCommandToOncallPrompts(self, line):
+        """sendCommandToOncallPrompts command
         ADVANCED! USE WITH CARE!
         Send a command to all oncall tmux sessions"""
         for hd in HalfDisks:
             commandToFLPPrompt(hd, line)
 
-    def do_enterToAll(self, line):
-        """enterToAll
+    def do_enterToOncallPrompts(self, line):
+        """enterToOncallPrompts
         Send ENTER to all oncall tmux sessions"""
         for hd in HalfDisks:
             enterToFLPPrompt(hd)
 
-    def do_clearAllPrompts(self, line):
-        """clearAllPrompts
+    def do_clearOncallPrompts(self, line):
+        """clearOncallPrompts
         Clears all text on prompts oncall tmux sessions"""
         for hd in HalfDisks:
             clearFLPPrompt(hd)
 
-    def do_interruptAllPrompts(self, line):
-        """interruptAllPrompts
+    def do_interruptOncallPrompts(self, line):
+        """interruptOncallPrompts
         Send interrupt request (CTRL-c) to all oncall tmux sessions`"""
         for hd in HalfDisks:
             interruptFLPPrompt(hd)
+
+    def do_checkLinks(self, line):
+        """checkLinks \nStatus report of all GBT links
+        """
+        for hd in HalfDisks:
+            print("\n"+hd+":")
+            flphost = flpMap[hd]
+            command = "roc-status --i=#" + getHalf(hd)
+            runOnFLP(flphost, command)
+
+    def do_checkLinksDown(self, line):
+        """checkLinksDown \nStatus report of all GBT links which are DOWN
+        """
+        for hd in HalfDisks:
+            print("\n"+hd+":")
+            flphost = flpMap[hd]
+            command = "roc-status --i=#" + getHalf(hd) + " | grep -E \"CRU|DOWN\""
+            runOnFLP(flphost, command)
 
     def do_updateRUFirmware(self, firmwareVersion):
         """updateFirmware firmwareVersion
