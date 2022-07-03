@@ -38,7 +38,7 @@ getLogForHalfDisk () {
     SELECTEDFILE=""
     COUNT=${COUNT:-1}
 
-    if ! [ -z ${FOLDER+x} ]; then 
+    if ! [ -z ${FOLDER+x} ]; then
     case $1 in
 	h0-d0|h1-d4)
 	    FOLDER="mftcom1/logs";
@@ -57,7 +57,7 @@ getLogForHalfDisk () {
 	    ;;
     esac
     fi
-    
+
 #echo $FOLDER
     for FILE in `ls -t ${FOLDER}/*.log`
     do
@@ -76,7 +76,7 @@ getLogForHalfDisk () {
     done
 }
 
-    
+
 
 showWarningsErrors () {
 RED='\033[0;31m'
@@ -87,11 +87,18 @@ NC='\033[0m' # No Color
 
 if [[ ${1} != "" ]]
 then
-    grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks"  ${1} | \
+  grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks"  ${1} > .tempMSG
+  grep --color -E -A 2 "xcku FAILED"  ${1} >> .tempMSG
+
+  cat .tempMSG | \
+  grep -v "Failed to connect to session ecs"  | \
+  grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
+  grep -v "Found no HB Accepted"  | \
 	sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
 	sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
 	sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
 	sed "s/CRITICAL/$(printf "${PURPLE}CRITICAL${NC}")/g" | \
+  sort |
 	uniq
 fi
 }
