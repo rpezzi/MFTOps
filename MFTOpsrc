@@ -1,0 +1,107 @@
+showWarningsErrors () {
+RED='\033[0;31m'
+ORANGE='\033[0;33m'
+PURPLE='\033[0;35m'
+GREEN='\033[0m' # No Color
+NC='\033[0m' # No Color
+
+if [[ ${1} != "" ]]
+then
+  grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks"  ${1} > .tempMSG
+  grep --color -E -A 2 "xcku FAILED"  ${1} >> .tempMSG
+
+  cat .tempMSG | \
+  grep -v "Failed to connect to session ecs"  | \
+  grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
+  grep -v "Found no HB Accepted"  | \
+	sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
+	sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
+	sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
+	sed "s/CRITICAL/$(printf "${PURPLE}CRITICAL${NC}")/g" | \
+  sort |
+	uniq
+fi
+}
+
+
+checkMFTConfig () {
+
+
+PATTERN=$1
+shift 1
+COUNT=1
+FOLDER=""
+
+while [ $# -gt 0 ] ; do
+    case $1 in
+	-d)
+	    FOLDER="$2";
+	    shift 2
+	    ;;
+	-c)
+  	    COUNT="$2";
+	    shift 2
+	    ;;
+    esac
+done
+
+
+
+
+
+getLogForHalfDisk () {
+    SELECTEDFILE=""
+    COUNT=${COUNT:-1}
+    FOLDER=~/daq_init_logs 
+
+    for FILE in `ls -t ${FOLDER}/*.log`
+    do
+	if [[ `grep $PATTERN ${FILE}` != "" ]]
+	then
+ 	    ((COUNT--))
+
+
+	    if [ $COUNT -eq 0 ];
+	    then
+		SELECTEDFILE=$FILE
+		echo ${SELECTEDFILE}
+		break
+	    fi
+	fi
+    done
+}
+
+
+
+showWarningsErrors () {
+RED='\033[0;31m'
+ORANGE='\033[0;33m'
+PURPLE='\033[0;35m'
+GREEN='\033[0m' # No Color
+NC='\033[0m' # No Color
+
+if [[ ${1} != "" ]]
+then
+  grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks"  ${1} > .tempMSG
+  grep --color -E -A 2 "xcku FAILED"  ${1} >> .tempMSG
+
+  cat .tempMSG | \
+  grep -v "Failed to connect to session ecs"  | \
+  grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
+  grep -v "Found no HB Accepted"  | \
+	sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
+	sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
+	sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
+	sed "s/CRITICAL/$(printf "${PURPLE}CRITICAL${NC}")/g" | \
+  sort |
+	uniq
+fi
+}
+
+
+LOGFILE=`getLogForHalfDisk $PATTERN $COUNT`
+echo -e "\n\n $PATTERN    ====>   Configuration for $PATTERN on ${LOGFILE}\n"
+showWarningsErrors ${LOGFILE}
+
+
+}

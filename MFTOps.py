@@ -2,13 +2,13 @@
 import cmd
 import os
 import readline
-
+import datetime
 ## Load MFT configuration modes from MFTConfigs.py
 from MFTConfigs import *
 
 histfile = '.MFTOps_history'
 histfile_size = 10000
-
+logfilename="MFTOps_"+datetime.datetime.now().strftime("%Y.%m.%d_%Hh%Mm%Ss")+".log"
 HalfDisks = [
     'h0-d0', 'h1-d4', 'h0-d1', 'h1-d3', 'h0-d2', 'h1-d2', 'h0-d3', 'h1-d1',
     'h0-d4', 'h1-d0'
@@ -26,8 +26,15 @@ flpMap = {"h0-d0": "mftcom1",
     "h1-d0": "mftcom5"
 }
 
-MFTflps = {'mftcom1', 'mftcom2', 'mftcom3', 'mftcom4', 'mftcom5'}
+MFTflps = ['mftcom1', 'mftcom2', 'mftcom3', 'mftcom4', 'mftcom5']
 
+CRUPCIeAdd=[["3b:00.0", "3c:00.0"], ["af:00.0", "b0:00.0"]]
+def log(msg, verbose = True):
+    logfile = open(logfilename, 'a')
+    if verbose:
+        print(msg)
+    logfile.write(msg+"\n")
+    logfile.close()
 
 def getHalf(halfdisk):
     return halfdisk[1]
@@ -40,7 +47,7 @@ def checkHalfDisk(halfDisk):  # Check if halfdisk is valid
 
 def checkConfig(config):  # Check if halfdisk is valid
     if (config in configMap):
-        print(config + ": " + configMap[config] + "hx-dx\n")
+        log(config + ": " + configMap[config] + "hx-dx\n")
         return True
     else:
         return False
@@ -61,9 +68,9 @@ def commandToFLPPrompt(halfDisk, command): # Send a command to the corresponding
 def runOnFLP(hostname, command): # Runs a command on the corresponding FLP
     if (hostname in MFTflps):
         cmd_ = "ssh -Y " + hostname + " " + command
-        os.system(cmd_)
+        os.system(cmd_ + " | tee -a " + logfilename)
     else:
-        print(hostname, "is not a valid MFT FLP")
+        log(hostname, "is not a valid MFT FLP")
 
 def clearFLPPrompt(halfDisk): # Clear prompt entry of the corresponding tmux terminal
     if checkHalfDisk(halfDisk):
@@ -72,14 +79,16 @@ def clearFLPPrompt(halfDisk): # Clear prompt entry of the corresponding tmux ter
 def enterToFLPPrompt(halfDisk): # Send ENTER to the corresponding tmux terminal
     if checkHalfDisk(halfDisk):
         flphost = flpMap[halfDisk]
-        cmd_prefix = "ssh -Y " + flpMap[halfDisk] + "  tmux send -t oncall:0." + getHalf(halfDisk) + " ENTER "
-        os.system(cmd_prefix)
+        cmd = "ssh -Y " + flpMap[halfDisk] + "  tmux send -t oncall:0." + getHalf(halfDisk) + " ENTER "
+        os.system(cmd)
 
 def interruptFLPPrompt(halfDisk): # Send CTRL-c to the corresponding tmux terminal
     if checkHalfDisk(halfDisk):
         flphost = flpMap[halfDisk]
-        cmd_prefix = "ssh -Y " + flpMap[halfDisk] + "  tmux send -t oncall:0." + getHalf(halfDisk) + " C-c "
-        os.system(cmd_prefix)
+        cmd = "ssh -Y " + flpMap[halfDisk] + "  tmux send -t oncall:0." + getHalf(halfDisk) + " C-c "
+        os.system(cmd)
+def printDate():
+    os.system("date +\"%d.%m.%Y %H:%M:%S %z\"" + " | tee -a " + logfilename)
 
 def configMFT(mode): # Sends a configuration command to all MFT CRUs
     mode = mode.upper();
@@ -88,12 +97,26 @@ def configMFT(mode): # Sends a configuration command to all MFT CRUs
             configCMD = configMap[mode] + hd;
             commandToFLPPrompt(hd, configCMD)
     else:
-        print(mode, "is an invalid MFT configuration.")
+        log(mode, "is an invalid MFT configuration.")
         listConfigs()
 
+def run_rocStatus(filter = ""):
+    printDate()
+    filter_cmd = ""
+    if (filter):
+        filter_cmd = " \| grep -E \"" + filter + "\""
+        print_rof_status_header()
+    for hd in HalfDisks:
+        half=int(getHalf(hd))
+        flphost = flpMap[hd]
+        for face in range(2):
+            log("\n" + hd + " face " + str(face) + " @" + flphost +  ":")
+            command = "roc-status --id " + CRUPCIeAdd[half][face] + filter_cmd
+            runOnFLP(flphost, command)
+
 def print_rof_status_header():
-    print("=================================================================================================================================================================")
-    print("Link ID   GBT Mode Tx/Rx   Loopback   GBT MUX        Datapath Mode   Datapath   RX freq(MHz)   TX freq(MHz)   Status   Optical power(uW)   System ID   FEE ID ")
+    log("================================================================================================================================================================")
+    log("Link ID   GBT Mode Tx/Rx   Loopback   GBT MUX        Datapath Mode   Datapath   RX freq(MHz)   TX freq(MHz)   Status   Optical power(uW)   System ID   FEE ID ")
 
 class MFTOps(cmd.Cmd):
     prompt = '(MFTOps) '
@@ -117,8 +140,13 @@ class MFTOps(cmd.Cmd):
         print("checkLinksDown")
         print("Type 'help' to view available commands; <TAB> autocompletes")
         print("Think twice before sending any command!\n")
+        log("Starting MFTOps session. Log at " + logfilename + "\n")
         if readline and os.path.exists(histfile):
             readline.read_history_file(histfile)
+
+    def precmd(self, line):
+        log("\n====> " + datetime.datetime.now().strftime("%Y.%m.%d_%Hh%Mm%Ss") + " (MFTOps) " + line, False)
+        return line
 
     def do_listConfigs(self, line):
         """listConfigs
@@ -131,7 +159,7 @@ class MFTOps(cmd.Cmd):
         if mode:
             configMFT(mode)
         else:
-            print('Missing configuration mode!')
+            log('Missing configuration mode!')
             listConfigs();
 
     def complete_config(self, text, line, begidx, endidx):
@@ -163,44 +191,34 @@ class MFTOps(cmd.Cmd):
         for hd in HalfDisks:
             interruptFLPPrompt(hd)
 
-    def do_checkLinks(self, line):
-        """checkLinks \nStatus report of all GBT links
+    def do_checkLinks(self, filter):
+        """checkLinks \nStatus report of all GBT links. Optional selection filter can be provided
         """
-        for hd in HalfDisks:
-            flphost = flpMap[hd]
-            print("\n" + hd + " face 0 @" + flphost +  ":")
-            command = "roc-status --i=#0"
-            runOnFLP(flphost, command)
-            print("\n" + hd + " face 1 @" + flphost +  ":")
-            command = "roc-status --i=#1"
-            runOnFLP(flphost, command)
+        run_rocStatus(filter)
 
     def do_checkLinksDown(self, line):
         """checkLinksDown \nStatus report of all GBT links which are DOWN
         """
-        print_rof_status_header()
-        for hd in HalfDisks:
-            flphost = flpMap[hd]
-            print("\n" + hd + " face 0 @" + flphost +  ":")
-            command = "roc-status --i=#0" + " | grep -E \"CRU|DOWN\""
-            runOnFLP(flphost, command)
-            print("\n" + hd + " face 1 @" + flphost +  ":")
-            flphost = flpMap[hd]
-            command = "roc-status --i=#1" + " | grep -E \"CRU|DOWN\""
-            runOnFLP(flphost, command)
+        run_rocStatus("DOWN")
 
     def do_checkLinksControl(self, line):
         """checkLinksControl \nStatus report of control GBT links
         """
-        print_rof_status_header()
+        run_rocStatus("SWT")
+
+    def do_checkLinksControlDown(self, line):
+        """checkLinksControl \nStatus report of control GBT links which are down
+        """
+        run_rocStatus("SWT.*DOWN")
+
+    def do_errorCheck(self, line):
+        """errorCheck \nList problems is last daqinitConfiguration
+        """
         for hd in HalfDisks:
+            half=int(getHalf(hd))
             flphost = flpMap[hd]
-            print("\n" + hd + " face 0 @" + flphost +  ":")
-            command = "roc-status --i=#0" + " | grep -E \"0         GBT|3         GBT|6         GBT|9         GBT\""
-            runOnFLP(flphost, command)
-            print("\n" + hd + " face 1 @" + flphost +  ":")
-            command = "roc-status --i=#1" + " | grep -E \"0         GBT|3         GBT|6         GBT|9         GBT\""
-            runOnFLP(flphost, command)
+            runOnFLP(flphost, "checkMFTConfig " + hd )
+
 
     def do_exit(self, line):
         """exit
@@ -225,17 +243,20 @@ class MFTOps(cmd.Cmd):
         readline.write_history_file(histfile)
         print()
         MFTSRC().cmdloop()
-        print("Advanced mode OFF")
+        log("Advanced mode OFF")
 
     __hiden_methods = ('do_EOF','do_SRC')
 
     def get_names(self): # To hide EOF method from help and autocompletion
         return [n for n in dir(self.__class__) if n not in self.__hiden_methods]
 
+################################################################################
+############################## ADVANCED SRC mode ###############################
+################################################################################
 class MFTSRC(MFTOps):
     prompt = '(MFTOps.SRC) '
     def preloop(self):
-        print("Advanced mode ON")
+        log("Advanced mode ON")
         if readline and os.path.exists(histfile):
             readline.read_history_file(histfile)
 
@@ -243,6 +264,14 @@ class MFTSRC(MFTOps):
         """updateFirmware firmwareVersion
         """
         print("Someday maybe...")
+
+    def do_runOnAllFLPs(self, command):
+        """updateFirmware firmwareVersion
+        """
+        for flp in MFTflps:
+            log("Running on ", flp, ":", command)
+            runOnFLP(flp,"\"" + command + "\"")
+
 
 if __name__ == '__main__':
     MFTOps().cmdloop()

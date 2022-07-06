@@ -11,5 +11,6 @@ do
     ./checkMFTconfig.sh $HALFDISK
 done
 }
-
-checkLastConfig  > ConfigSummary.log && less -r ConfigSummary.log
+STAMP=`date +"%d.%m.%Y_%H:%M:%S_%Z"`
+LOGFILE=ConfigSummary_${STAMP}.log
+checkLastConfig  > $LOGFILE && less -r $LOGFILE
