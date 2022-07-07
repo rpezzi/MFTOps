@@ -3,8 +3,9 @@ import cmd
 import os
 import readline
 import datetime
+import importlib
 ## Load MFT configuration modes from MFTConfigs.py
-from MFTConfigs import *
+import MFTConfigs
 
 histfile = '.MFTOps_history'
 histfile_size = 10000
@@ -46,16 +47,18 @@ def checkHalfDisk(halfDisk):  # Check if halfdisk is valid
         return False
 
 def checkConfig(config):  # Check if halfdisk is valid
-    if (config in configMap):
-        log(config + ": " + configMap[config] + "hx-dx\n")
+    importlib.reload(MFTConfigs)
+    if (config in MFTConfigs.configMap):
+        log(config + ": " + MFTConfigs.configMap[config] + "hx-dx\n")
         return True
     else:
         return False
 
 def listConfigs():
-    print("The following configurations are available for command 'config':\n")
-    for option in configMap:
-        print(option, "\n", configMap[option] + "hx-dx","\n")
+    log("The following configurations are available for command 'config':\n")
+    importlib.reload(MFTConfigs)
+    for option in MFTConfigs.configMap:
+        log(option + "\n" + MFTConfigs.configMap[option] + "hx-dx" + "\n")
     print("\nSource: https://alice-mft-operation.docs.cern.ch/MFT%20On-Call%20Running%20Conditions/On-Call_Running_Conditions/")
 
 def commandToFLPPrompt(halfDisk, command): # Send a command to the corresponding tmux terminal
@@ -94,11 +97,16 @@ def configMFT(mode): # Sends a configuration command to all MFT CRUs
     mode = mode.upper();
     if checkConfig(mode):
         for hd in HalfDisks:
-            configCMD = configMap[mode] + hd;
+            configCMD = MFTConfigs.configMap[mode] + hd;
             commandToFLPPrompt(hd, configCMD)
     else:
         log(mode, "is an invalid MFT configuration.")
         listConfigs()
+
+def customConfigMFT(cfg): # Sends a custom configuration command to all MFT CRUs; hx-dx is appened to the command
+    for hd in HalfDisks:
+        configCMD = cfg + hd;
+        commandToFLPPrompt(hd, configCMD)
 
 def run_rocStatus(filter = ""):
     printDate()
@@ -150,7 +158,7 @@ class MFTOps(cmd.Cmd):
 
     def do_listConfigs(self, line):
         """listConfigs
-        List available MFT configurations"""
+        List available MFT configurations stored on MFTConfigs.py"""
         listConfigs();
 
     def do_config(self, mode):
@@ -162,11 +170,17 @@ class MFTOps(cmd.Cmd):
             log('Missing configuration mode!')
             listConfigs();
 
+    def do_customConfig(self, cfg):
+        """customConfig cfg
+        Send custom MFT configuration command to FLPs. ATTENTION: hx-dx is automatically appened to the end of the command line
+        Ex: `./daq_init.py --gbtxload 3 --log --trig_source 4 --continuous -f 101.213 --auto_rof --scan 2 --mask 2 --name cru-`"""
+        customConfigMFT(cfg)
+
     def complete_config(self, text, line, begidx, endidx):
         text=text.upper()
-        return [i for i in configMap if i.startswith(text)]
+        return [i for i in MFTConfigs.configMap if i.startswith(text)]
 
-    def do_sendCommandToOncallPrompts(self, line):
+    def do_sendCommandToOncallPrompts(self, line): # Should this be moved to advanced SRC mode?
         """sendCommandToOncallPrompts command
         ADVANCED! USE WITH CARE!
         Send a command to all oncall tmux sessions"""
@@ -192,37 +206,36 @@ class MFTOps(cmd.Cmd):
             interruptFLPPrompt(hd)
 
     def do_checkLinks(self, filter):
-        """checkLinks \nStatus report of all GBT links. Optional selection filter can be provided
+        """checkLinks \nReport status of all GBT links. Optional selection filter can be provided
         """
         run_rocStatus(filter)
 
     def do_checkLinksDown(self, line):
-        """checkLinksDown \nStatus report of all GBT links which are DOWN
+        """checkLinksDown \nReports all GBT links which are DOWN
         """
         run_rocStatus("DOWN")
 
     def do_checkLinksControl(self, line):
-        """checkLinksControl \nStatus report of control GBT links
+        """checkLinksControl \nReports status of control GBT links (which should be UP once MFT is moved to READY)
         """
         run_rocStatus("SWT")
 
     def do_checkLinksControlDown(self, line):
-        """checkLinksControl \nStatus report of control GBT links which are down
+        """checkLinksControlDown \nReports control GBT links which are down
         """
         run_rocStatus("SWT.*DOWN")
 
     def do_errorCheck(self, line):
-        """errorCheck \nList problems is last daqinitConfiguration
+        """errorCheck \nList problems from last daqinit configuration
         """
         for hd in HalfDisks:
             half=int(getHalf(hd))
             flphost = flpMap[hd]
             runOnFLP(flphost, "checkMFTConfig " + hd )
 
-
     def do_exit(self, line):
         """exit
-        Exit this shell"""
+        Exit this shell. CTRL-d also works."""
         return True
 
     def emptyline(self):
@@ -237,7 +250,7 @@ class MFTOps(cmd.Cmd):
         print()
 
     def do_SRC(self, line):
-        """SRCMode
+        """SRC
         Enter advanced mode"""
         readline.set_history_length(histfile_size)
         readline.write_history_file(histfile)
@@ -261,17 +274,17 @@ class MFTSRC(MFTOps):
             readline.read_history_file(histfile)
 
     def do_updateRUFirmware(self, firmwareVersion):
-        """updateFirmware firmwareVersion
+        """updateRUFirmware firmwareVersion
+        Someday, maybe...
         """
         print("Someday maybe...")
 
     def do_runOnAllFLPs(self, command):
-        """updateFirmware firmwareVersion
+        """runOnAllFLPs command\nRuns command on each FLP
         """
         for flp in MFTflps:
             log("Running on ", flp, ":", command)
             runOnFLP(flp,"\"" + command + "\"")
-
 
 if __name__ == '__main__':
     MFTOps().cmdloop()
