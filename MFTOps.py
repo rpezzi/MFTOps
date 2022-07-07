@@ -283,7 +283,7 @@ class MFTSRC(MFTOps):
         """runOnAllFLPs command\nRuns command on each FLP
         """
         for flp in MFTflps:
-            log("Running on ", flp, ":", command)
+            log("Running on " + flp + ": " + command)
             runOnFLP(flp,"\"" + command + "\"")
 
 if __name__ == '__main__':
