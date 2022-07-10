@@ -1,32 +1,37 @@
+
 showWarningsErrors () {
 RED='\033[0;31m'
 ORANGE='\033[0;33m'
 PURPLE='\033[0;35m'
-GREEN='\033[0m' # No Color
+GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 if [[ ${1} != "" ]]
 then
-  grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks"  ${1} > .tempMSG
+  grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks|GBTx configuration via sca succeded"  ${1} > .tempMSG
+
   grep --color -E -A 2 "xcku FAILED"  ${1} >> .tempMSG
 
+  grep --color -E "SCA I2C bad status return"  ${1} >> .tempMSG && \
+       echo -e "*********** SCA - ERROR - SCA I2C bad status!! =========> 1) rerun the script; 2) powercycle half disk if failed again.\n" >> .tempMSG
+
   cat .tempMSG | \
-  grep -v "Failed to connect to session ecs"  | \
-  grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
-  grep -v "Found no HB Accepted"  | \
-	sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
-	sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
-	sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
-	sed "s/CRITICAL/$(printf "${PURPLE}CRITICAL${NC}")/g" | \
-  sort |
-	uniq
+    grep -v "Failed to connect to session ecs"  | \
+      grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
+      grep -v "Found no HB Accepted"  | \
+      sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
+      sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
+      sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
+      sed "s/CRITICAL/$(printf "${PURPLE}CRITICAL${NC}")/g" | \
+      sed "s/INFO/$(printf "${GREEN}INFO${NC}")/g" | \
+      sort -V | \
+      uniq
 fi
 }
 
 
+
 checkMFTConfig () {
-
-
 PATTERN=$1
 shift 1
 COUNT=1
@@ -46,13 +51,10 @@ while [ $# -gt 0 ] ; do
 done
 
 
-
-
-
 getLogForHalfDisk () {
     SELECTEDFILE=""
     COUNT=${COUNT:-1}
-    FOLDER=~/daq_init_logs 
+    FOLDER=~/daq_init_logs
 
     for FILE in `ls -t ${FOLDER}/*.log`
     do
@@ -72,35 +74,8 @@ getLogForHalfDisk () {
 }
 
 
-
-showWarningsErrors () {
-RED='\033[0;31m'
-ORANGE='\033[0;33m'
-PURPLE='\033[0;35m'
-GREEN='\033[0m' # No Color
-NC='\033[0m' # No Color
-
-if [[ ${1} != "" ]]
-then
-  grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks"  ${1} > .tempMSG
-  grep --color -E -A 2 "xcku FAILED"  ${1} >> .tempMSG
-
-  cat .tempMSG | \
-  grep -v "Failed to connect to session ecs"  | \
-  grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
-  grep -v "Found no HB Accepted"  | \
-	sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
-	sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
-	sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
-	sed "s/CRITICAL/$(printf "${PURPLE}CRITICAL${NC}")/g" | \
-  sort |
-	uniq
-fi
-}
-
-
 LOGFILE=`getLogForHalfDisk $PATTERN $COUNT`
-echo -e "\n\n $PATTERN    ====>   Configuration for $PATTERN on ${LOGFILE}\n"
+echo -e "\n\n $PATTERN    ====>   Configuration for $PATTERN on ${LOGFILE} in host `hostname` \n"
 showWarningsErrors ${LOGFILE}
 
 
