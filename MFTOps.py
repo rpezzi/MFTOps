@@ -29,6 +29,13 @@ flpMap = {"h0-d0": "mftcom1",
 
 MFTflps = ['mftcom1', 'mftcom2', 'mftcom3', 'mftcom4', 'mftcom5']
 
+cruMap = {"mftcom1": ["570", "567"],
+    "mftcom2": ["548", "554"],
+    "mftcom3": ["569", "543"],
+    "mftcom4": ["552", "211"],
+    "mftcom5": ["547", "542"]
+}
+
 CRUPCIeAdd=[["3b:00.0", "3c:00.0"], ["af:00.0", "b0:00.0"]]
 def log(msg, verbose = True):
     logfile = open(logfilename, 'a')
@@ -273,11 +280,21 @@ class MFTSRC(MFTOps):
         if readline and os.path.exists(histfile):
             readline.read_history_file(histfile)
 
-    def do_updateRUFirmware(self, firmwareVersion):
-        """updateRUFirmware firmwareVersion
-        Someday, maybe...
+    def do_updateRUFirmware(self, command):
+        """updateRUFirmware command
+        ex: `updateRUFirmware  /home/mft/ru-scripts/software/py/testbench_mft.py flash_all_rdo_bitfiles /home/mft/xcku_bitfiles/v1_x_y/XCKU_vx_y_0`
+        The CRU serial number is automatically passed to the firmware flash script as an enviroment variable
         """
-        print("Someday maybe...")
+        log("\n***** WARNING ******\nYou are about to flash the firmware on all MFT ReadOut Units.\n")
+        log("Flash command: " + command + "\n")
+        flash = input("Are you sure?\n Type YES to continue: ")
+        if flash!="YES":
+            return
+        for flp in MFTflps:
+            for crusn in cruMap[flp]:
+                updateCmd = "CRUSN=" + crusn + " " + command
+                log("Running on " + flp + ": " + updateCmd)
+                runOnFLP(flp,"\"" + updateCmd + "\"")
 
     def do_runOnAllFLPs(self, command):
         """runOnAllFLPs command\nRuns command on each FLP

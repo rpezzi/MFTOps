@@ -10,13 +10,16 @@ if [[ ${1} != "" ]]
 then
   grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks|GBTx configuration via sca succeded"  ${1} > .tempMSG
 
-  grep --color -E -A 2 "xcku FAILED"  ${1} >> .tempMSG
+  grep --color -E "xcku FAILED"  ${1} >> .tempMSG
 
   grep --color -E "SCA I2C bad status return"  ${1} >> .tempMSG && \
-       echo -e "*********** SCA - ERROR - SCA I2C bad status!! =========> 1) rerun the script; 2) powercycle half disk if failed again.\n" >> .tempMSG
+      echo -e "*********** SCA - ERROR - SCA I2C bad status!! =========> 1) rerun the script; 2) powercycle half disk if failed again.\n" >> .tempMSG
+
+  grep --color -E "could not align all transceivers"  ${1} >> .tempMSG && \
+      echo -e "*********** ERROR: could not align all transceivers!! =========> Rerun script (several times if needed).\n" >> .tempMSG
 
   cat .tempMSG | \
-    grep -v "Failed to connect to session ecs"  | \
+      grep -v "Failed to connect to session ecs"  | \
       grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
       grep -v "Found no HB Accepted"  | \
       sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
