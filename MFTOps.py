@@ -114,7 +114,7 @@ class MFTOps(cmd.Cmd):
         """errorCheck \nList problems from last daqinit configuration
         """
         for hd in MFTMaps.HalfDisks:
-            half=int(getHalf(hd))
+            half=int(MFTCmd.getHalf(hd))
             flphost = MFTMaps.flpMap[hd]
             MFTCmd.runOnFLP(flphost, "checkMFTConfig " + hd )
 
