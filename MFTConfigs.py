@@ -54,7 +54,7 @@ configMap = {
 # Noise scan 67.475 kHz
 "NOISE": "./daq_init.py --dcs --gbtxload 3 --log --trig_source 4 --continuous -f 67.475 --auto_rof --scan 2 --name cru-",
 # pp 202.425 kHz monte carlo emulated pattern
-"PPMC": "./daq_init.py --gbtxload 3 --log --trig_source 4 --continuous -f 202.425 --auto_rof --mc_hit --mc_id 1 --name cru-",
+"PPMC": "./daq_init.py --gbtxload 3 --dcs --log --trig_source 4 --continuous -f 202.425 --auto_rof --mc_hit --mc_id 1 --name cru-",
 # PbPb 44.983 kHz monte carlo emulated pattern
-"PBPBMC": "./daq_init.py --gbtxload 3 --log --trig_source 4 --continuous -f 44.983 --auto_rof --mc_hit --mc_id 0 --name cru-"
+"PBPBMC": "./daq_init.py --gbtxload 3 --dcs --log --trig_source 4 --continuous -f 44.983 --auto_rof --mc_hit --mc_id 0 --name cru-"
 }

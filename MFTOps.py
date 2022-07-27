@@ -29,11 +29,36 @@ flpMap = {"h0-d0": "mftcom1",
 
 MFTflps = ['mftcom1', 'mftcom2', 'mftcom3', 'mftcom4', 'mftcom5']
 
-cruMap = {"mftcom1": ["570", "567"],
+cruFLPMap = {"mftcom1": ["570", "567"],
     "mftcom2": ["548", "554"],
     "mftcom3": ["569", "543"],
     "mftcom4": ["552", "211"],
     "mftcom5": ["547", "542"]
+}
+
+
+hdCRUMap = {"h0-d0": "570",
+    "h1-d4": "567",
+    "h0-d1": "548",
+    "h1-d3": "554",
+    "h0-d2": "569",
+    "h1-d2": "543",
+    "h0-d3": "552",
+    "h1-d1": "211",
+    "h0-d4": "547",
+    "h1-d0": "542"
+}
+
+cruHDMap = {"570": "h0-d0",
+    "567": "h1-d4",
+    "548": "h0-d1",
+    "554": "h1-d3",
+    "569": "h0-d2",
+    "543": "h1-d2",
+    "552": "h0-d3",
+    "211": "h1-d1",
+    "547": "h0-d4",
+    "542": "h1-d0"
 }
 
 CRUPCIeAdd=[["3b:00.0", "3c:00.0"], ["af:00.0", "b0:00.0"]]
@@ -129,6 +154,7 @@ def run_rocStatus(filter = ""):
             command = "roc-status --id " + CRUPCIeAdd[half][face] + filter_cmd
             runOnFLP(flphost, command)
 
+
 def print_rof_status_header():
     log("================================================================================================================================================================")
     log("Link ID   GBT Mode Tx/Rx   Loopback   GBT MUX        Datapath Mode   Datapath   RX freq(MHz)   TX freq(MHz)   Status   Optical power(uW)   System ID   FEE ID ")
@@ -160,7 +186,7 @@ class MFTOps(cmd.Cmd):
             readline.read_history_file(histfile)
 
     def precmd(self, line):
-        log("\n====> " + datetime.datetime.now().strftime("%Y.%m.%d_%Hh%Mm%Ss") + " (MFTOps) " + line, False)
+        log("\n====> " + datetime.datetime.now().strftime("%Y.%m.%d_%Hh%Mm%Ss") + " (MFTOps) " + line)
         return line
 
     def do_listConfigs(self, line):
@@ -283,24 +309,33 @@ class MFTSRC(MFTOps):
     def do_updateRUFirmware(self, command):
         """updateRUFirmware command
         ex: `updateRUFirmware  /home/mft/ru-scripts/software/py/testbench_mft.py flash_all_rdo_bitfiles /home/mft/xcku_bitfiles/v1_x_y/XCKU_vx_y_0`
-        The CRU serial number is automatically passed to the firmware flash script as an enviroment variable
+        The CRU serial number is automatically passed to the firmware flash script as an enviroment variable.
+        Command is sent to MFT on-call tmux sessions.
         """
-        log("\n***** WARNING ******\nYou are about to flash the firmware on all MFT ReadOut Units.\n")
         log("Flash command: " + command + "\n")
-        flash = input("Are you sure?\n Type YES to continue: ")
-        if flash!="YES":
-            return
         for flp in MFTflps:
-            for crusn in cruMap[flp]:
+            for crusn in cruFLPMap[flp]:
+                hd = cruHDMap[crusn]
                 updateCmd = "CRUSN=" + crusn + " " + command
-                log("Running on " + flp + ": " + updateCmd)
-                runOnFLP(flp,"\"" + updateCmd + "\"")
+                log("Sending to " + flp + " / " + hd + ": " + updateCmd)
+                commandToFLPPrompt(hd, updateCmd)
 
     def do_runOnAllFLPs(self, command):
-        """runOnAllFLPs command\nRuns command on each FLP
+        """runOnAllFLPs command\nRuns command on each FLP in a background session.
+        On-call prompts are NOT used. Given command is executed without requesting for confirmation.
+        Output is shown on MFTOps console.
         """
         for flp in MFTflps:
             log("Running on " + flp + ": " + command)
+            runOnFLP(flp,"\"" + command + "\"")
+
+    def do_setLogLocation(self, dir):
+        """setLogLocation <directory>\nSet location of log files used by errorCheck.
+        This command replaces symlink ~/daq_init_logs
+        """
+        command = "test -d " + dir + " && { rm ~/daq_init_logs ; ln -s " + dir + " ~/daq_init_logs && echo `hostname` OK ; } || { echo ERROR: Path not found on `hostname` ; }"
+        for flp in MFTflps:
+            log("Setting log location for " + flp + ": " +dir)
             runOnFLP(flp,"\"" + command + "\"")
 
 if __name__ == '__main__':
