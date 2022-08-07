@@ -28,7 +28,7 @@ then
       grep -v "Failed to connect to session ecs"  | \
       grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
       grep -v "Found no HB Accepted"  | \
-      grep -v "ALPIDE CONTROL - ERROR - Data 8 "  | \
+      grep -v "ALPIDE CONTROL - ERROR - Data 8"  | \
       sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
       sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
       sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
