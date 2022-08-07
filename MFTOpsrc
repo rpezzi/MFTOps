@@ -8,20 +8,27 @@ NC='\033[0m' # No Color
 
 if [[ ${1} != "" ]]
 then
+  # Filter Errors, warnings, criticals, sca succeded, xcku FAILED
   grep --color -E "ERROR|WARNING|CRITICAL|Set Clocks|GBTx configuration via sca succeded"  ${1} > .tempMSG
-
   grep --color -E "xcku FAILED"  ${1} >> .tempMSG
 
+
+  # Custom instructions for common problems
   grep --color -E "SCA I2C bad status return"  ${1} >> .tempMSG && \
-      echo -e "*********** SCA - ERROR - SCA I2C bad status!! =========> 1) rerun the script; 2) powercycle half disk if failed again.\n" >> .tempMSG
+      echo -e "*********** SCA - ERROR - SCA I2C bad status!! =========> 1) rerun the script; 2) powercycle zone or half disk if failed again.\n" >> .tempMSG
 
   grep --color -E "could not align all transceivers"  ${1} >> .tempMSG && \
       echo -e "*********** ERROR: could not align all transceivers!! =========> Rerun script (several times if needed).\n" >> .tempMSG
 
+  grep --color -E "CRITICAL - Replacement index"  ${1} >> .tempMSG && \
+      echo -e "*********** CRITICAL: Replacement index out of range!! =========> 1) powercycle zone or half disk and rerun script\n" >> .tempMSG
+
+  # Restore output colors and remove info that can be ignored
   cat .tempMSG | \
       grep -v "Failed to connect to session ecs"  | \
       grep -v "Mismatch in GBT packers TRIGGER_READ:"  | \
       grep -v "Found no HB Accepted"  | \
+      grep -v "ALPIDE CONTROL - ERROR - Data 8 "  | \
       sed "s/WARNING/$(printf "${ORANGE}WARNING${NC}")/g" | \
       sed "s/ERROR/$(printf "${RED}ERROR${NC}")/g" | \
       sed "s/Set Clocks/$(printf "${GREEN}Set Clocks{NC}")/g" | \
@@ -31,8 +38,6 @@ then
       uniq
 fi
 }
-
-
 
 checkMFTConfig () {
 PATTERN=$1
@@ -75,7 +80,6 @@ getLogForHalfDisk () {
 	fi
     done
 }
-
 
 LOGFILE=`getLogForHalfDisk $PATTERN $COUNT`
 echo -e "\n\n $PATTERN    ====>   Configuration for $PATTERN on ${LOGFILE} in host `hostname` \n"
