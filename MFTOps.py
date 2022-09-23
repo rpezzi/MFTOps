@@ -180,6 +180,14 @@ class MFTSRC(MFTOps):
             MFTCmd.log("Running on " + flp + ": " + command)
             MFTCmd.runOnFLP(flp,"\"" + command + "\"")
 
+    def do_updateMFTOps(self, command):
+        """updateMFTOps command\nRuns git pull on ~/MFTOps in all FLPs.
+        """
+        for flp in MFTMaps.MFTflps:
+            updateCMD="cd /home/mft/MFTOps && git pull"
+            MFTCmd.log("Running on " + flp + ": " + updateCMD)
+            MFTCmd.runOnFLP(flp,"\"" + updateCMD + "\"")
+
     def do_setLogLocation(self, dir):
         """setLogLocation <directory>\nSet location of log files used by errorCheck.
         This command replaces symlink ~/daq_init_logs
