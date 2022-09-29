@@ -192,7 +192,7 @@ class MFTSRC(MFTOps):
         """setLogLocation <directory>\nSet location of log files used by errorCheck.
         This command replaces symlink ~/daq_init_logs
         """
-        command = "test -d " + dir + " && { rm ~/daq_init_logs ; ln -s " + dir + " ~/daq_init_logs && echo `hostname` OK ; } || { echo ERROR: Path not found on `hostname` ; }"
+        command = "test -d " + dir + " && { rm ~/daq_init_logs ; ln -s " + dir + " ~/daq_init_logs && echo \`hostname\` OK ; } || { echo ERROR: Path not found on \`hostname\` ; }"
         for flp in MFTMaps.MFTflps:
             MFTCmd.log("Setting log location for " + flp + ": " +dir)
             MFTCmd.runOnFLP(flp,"\"" + command + "\"")
